@@ -94,3 +94,7 @@ The hook has a 90-second activation-suppression fail-safe. An Extra window you a
 - The companion checks for driver entries and unrelated active dependents before stopping. GHelper's toggle still has an inherent timing race; avoid manually toggling services during enforcement.
 - Uncertain delivery or failed verification disables automatic enforcement. No visible-click or direct-stop fallback is used.
 - This project is an independent companion, not an official GHelper component.
+
+## License
+
+Licensed under the [MIT License](LICENSE).
