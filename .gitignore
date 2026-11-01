@@ -1,0 +1,18 @@
+# Local configuration and activity
+/runtime/powershell-path.txt
+settings.json
+activity.log*
+*.log
+installation-scan.json
+
+# Compiled binaries are distributed separately from source
+*.exe
+*.dll
+
+# Temporary compiler output
+/build/
+/releases/
+*.def
+*.tmp
+*.update
+/.vs/

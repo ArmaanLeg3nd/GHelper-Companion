@@ -1,0 +1,42 @@
+Validation on 2026-11-01 in a reference Windows x64 environment:
+Tested GHelper file version: 0.288 (x64, English UI).
+Product version: 1.0.0+e897b278bf809add90c904ba84aa2e451579dd0c
+SHA256: AA94E40E1302A92458DF1C9D8E56C1FD6EF13ABADF318CBE88DB66FED0F3B4D8
+
+UI Automation InvokePattern: services stopped and services_disabled=1,
+but foreground changed to Extra Settings. This route was rejected.
+
+Native WM_COMMAND / BN_CLICKED to the identified service button:
+- Open Extra: 10 services started and then stopped using GHelper itself.
+- Foreground window unchanged; services_disabled=1 verified.
+- Minimized GHelper: same start/stop cycle passed with focus unchanged.
+- Actual Worker.ps1: passed the minimized live test; 0 active services
+  afterward, saved preference=1, foreground unchanged.
+
+Closing Extra destroys its button HWND. The original worker safely refused
+to act in this case. A later experimental CBT hook adds background reopening:
+see hook-open-extra-test.txt and hook-worker-live-test.txt in the output folder.
+The isolated opening test recorded no foreground-change events and verified
+hook removal. The hook opens Extra offscreen and blocks its activation.
+Integrated worker test passed: 0 active services afterward, preference=1,
+OpenedExtraInBackground=true, ForegroundUnchanged=true, HookRemoved=true.
+Repeated with GHelper's main window explicitly hidden to its system tray:
+the same checks passed. Temporary Extra was closed after stopping services.
+Runtime hook DLL: ExtraNoActivate-v2.dll. It uses a thread-scoped WH_CBT
+hook and a 90-second activation-suppression fail-safe. An inactive module
+mapping can remain until GHelper exits. This is experimental integration,
+not a guarantee across future GHelper versions.
+
+Tray initialization smoke test passed. The installed launcher started
+the administrator tray process from the application installation folder.
+Installed read-only scan found 0 active listed services, preference=1,
+and Armoury Crate inclusion enabled in GHelper.
+
+Automatic enforcement and sign-in startup were left OFF. The scheduled-task
+menu implementation was not exercised by registering a real startup task.
+No claim of absolute focus preservation or universal GHelper compatibility:
+the actual installed English-language build was tested. A timing race
+remains inherent in GHelper's toggle. Native GHelper stop changes startup
+types as described in README.md.
+
+
