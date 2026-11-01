@@ -2,13 +2,15 @@
 
 A Windows tray companion that asks your running [GHelper](https://github.com/seerge/g-helper) instance to stop ASUS services when they restart.
 
+**Unreleased correction:** the original `v0.1.0` hook could fail to hide Extra or cancel on unrelated foreground changes. Current source fixes the Unicode hook API, verifies pre-display DWM cloaking, and monitors GHelper activation specifically. These fixes are not in the existing `v0.1.0` tag or its original binary package.
+
 ## Platform and release package
 
-Version **0.1.0** is an experimental Windows x64 build. It requires Windows x64, PowerShell 7 x64, administrator rights, and a running x64 GHelper instance. The tested compatibility baseline is **GHelper 0.288 with its English-language UI**. ARM64, 32-bit Windows/GHelper, Linux, and macOS are not supported by this build.
+The current development build is experimental and Windows x64-specific. It requires Windows x64, PowerShell 7 x64, administrator rights, and a running x64 GHelper instance. The tested compatibility baseline is **GHelper 0.288 with its English-language UI**. ARM64, 32-bit Windows/GHelper, Linux, and macOS are not supported by this build.
 
 The launcher is a Windows .NET Framework AnyCPU executable, while the native hook DLL is compiled for Windows x64 and must match GHelper's architecture. The complete app is therefore Windows x64-specific, not platform-independent.
 
-The binary package is named `GHelperCompanion-v0.1.0-win-x64.zip`. It contains the launcher, the required `runtime/` scripts and hook DLL, and this README. It excludes local PowerShell paths, settings, logs, source files, and temporary build outputs. Extract the complete archive into one folder before launching the EXE.
+The corrected development package is named `GHelperCompanion-unreleased-win-x64.zip`. It contains the launcher, the required `runtime/` scripts and hook DLL, and this README. It excludes local PowerShell paths, settings, logs, source files, and temporary build outputs. Extract the complete archive into one folder before launching the EXE.
 
 Binary downloads should be distributed as GitHub Release assets rather than committed to Git. Mark the 0.1.0 release as a **prerelease** because its hook integration is experimental. A Git tag alone does not publish a release or upload this ZIP. GitHub's automatically generated source archives do not contain the ignored binaries; build from source if using those archives.
 
@@ -25,6 +27,7 @@ GHelperCompanion.exe       Compiled launcher (generated; ignored by Git)
 runtime/                  Tracked scripts; generated hook DLL goes here
 source/                   C# launcher and C hook build source
 docs/                     Validation notes
+tests/                    Foreground policy regression checks
 build/                    Temporary compiler output (generated; ignored)
 README.md                 Usage and build instructions
 ```
@@ -59,21 +62,21 @@ $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 & $csc /nologo /target:winexe /reference:System.Windows.Forms.dll /out:build\GHelperCompanion.exe source\Launcher.cs
 if ($LASTEXITCODE -ne 0) { throw 'Launcher compilation failed' }
 $tcc = (Get-Command tcc.exe -ErrorAction Stop).Source
-& $tcc -shared -o build\ExtraNoActivate-v2.dll source\ExtraNoActivate.c -luser32
+& $tcc -shared -o build\ExtraNoActivate-v5.dll source\ExtraNoActivate.c -luser32
 if ($LASTEXITCODE -ne 0) { throw 'Hook compilation failed' }
 ```
 
-The outputs are `build/GHelperCompanion.exe` and `build/ExtraNoActivate-v2.dll`. TinyCC may also produce an optional `.def` file. Nothing in `build/` is required after deployment.
+The outputs are `build/GHelperCompanion.exe` and `build/ExtraNoActivate-v5.dll`. TinyCC may also produce an optional `.def` file. Nothing in `build/` is required after deployment.
 
 Exit the companion before replacing files. Deploy the binaries into the runnable layout:
 
 ```powershell
 Copy-Item '.\build\GHelperCompanion.exe' '.\GHelperCompanion.exe' -Force
-Copy-Item '.\build\ExtraNoActivate-v2.dll' '.\runtime\ExtraNoActivate-v2.dll' -Force
+Copy-Item '.\build\ExtraNoActivate-v5.dll' '.\runtime\ExtraNoActivate-v5.dll' -Force
 Join-Path $PSHOME 'pwsh.exe' | Set-Content '.\runtime\powershell-path.txt'
 ```
 
-Deployment destinations are relative to the repository root: `./GHelperCompanion.exe` and `./runtime/ExtraNoActivate-v2.dll`. Building or deploying inside a protected installation folder requires administrator rights.
+Deployment destinations are relative to the repository root: `./GHelperCompanion.exe` and `./runtime/ExtraNoActivate-v5.dll`. Building or deploying inside a protected installation folder requires administrator rights.
 
 If Windows reports the hook DLL is in use, exit GHelper normally before replacing it; its inactive mapping can survive hook removal. Do not force-unload the module. Relaunch GHelper and the companion afterward. The EXE by itself, including the copy inside `build/`, is not a complete installation.
 
@@ -83,9 +86,9 @@ Before uninstalling, turn off **Run at sign-in** to remove the companion's sched
 
 Service names are extracted read-only from the installed GHelper assembly. The companion sends a native command to GHelper's own Stop button and checks the resulting service states and saved enforcement preference.
 
-When GHelper is hidden in the system tray and Extra is closed, a temporary, thread-scoped Windows CBT hook opens Extra offscreen without activation. The companion closes its temporary window and removes the hook afterward. This loads native code into GHelper through Windows' hook mechanism; it does not patch GHelper's executable. The inactive DLL mapping may remain until GHelper exits.
+When GHelper is hidden in the system tray and Extra is closed, two temporary, thread-scoped Windows hooks (CBT and call-window-return) create Extra with verified Desktop Window Manager cloaking before its first display. The companion closes its temporary window and removes the hook afterward. This loads native code into GHelper through Windows' hook mechanism; it does not patch GHelper's executable. The inactive DLL mapping may remain until GHelper exits.
 
-The hook has a 90-second activation-suppression fail-safe. An Extra window you already had open is left open. No global, keyboard, or mouse hook is installed. The app makes no network requests.
+The hooks have a 90-second activation-suppression fail-safe. The worker verifies the creation marker, pre-show cloak marker, and actual DWM cloak state before sending Stop. It monitors foreground events for GHelper, so an unrelated app switch is allowed. An Extra window you already had open is left open. No global, keyboard, or mouse hook is installed. The app makes no network requests.
 
 ## Limits
 
@@ -98,3 +101,7 @@ The hook has a 90-second activation-suppression fail-safe. An Extra window you a
 ## License
 
 Licensed under the [MIT License](LICENSE).
+
+## Regression checks
+
+From PowerShell 7, run `.\tests\ForegroundPolicy.Tests.ps1` to verify the foreground classification without changing windows or services. Live hook/service tests require the supported GHelper installation and administrator rights.

@@ -66,8 +66,9 @@ $timer.Add_Tick({try{
     $script:status=if($r.Ok){if(@($r.Running).Count -eq 0){'All services stopped'}else{"$(@($r.Running).Count) service(s) running"}}elseif($r.Message -like '*control unavailable*'){'Open GHelper Extra to continue'}else{'Needs attention — auto-stop off'}
     Log "$($b.Operation): $($r.Message)"
     if(-not $r.Ok){$script:continuous=$false;$auto.Checked=$false;Save-Settings;Notify $r.Message}
+    elseif($r.GHelperTookFocus -eq $true){$script:continuous=$false;$auto.Checked=$false;Save-Settings;Notify 'GHelper became foreground during the stop. Auto-stop is off.'}
     elseif($b.Manual){Notify $r.Message}
-    elseif($r.ForegroundUnchanged -eq $false){$script:continuous=$false;$auto.Checked=$false;Save-Settings;Notify 'Foreground changed during the stop. Enforcement paused.'}
+    if($r.PSObject.Properties.Name -contains 'CreationHookVerified'){Log "Hook verified=$($r.CreationHookVerified); cloaked before show=$($r.CloakedBeforeShow); GHelper activation events=$($r.GHelperActivationEvents); hooks removed=$($r.HookRemoved -and $r.ReturnHookRemoved)"}
    }catch{$script:continuous=$false;$auto.Checked=$false;Save-Settings;Notify $_.Exception.Message;Log $_.Exception.Message}
    finally{if(Test-Path $b.Result){Remove-Item -LiteralPath $b.Result};$b.Process.Dispose();$script:busy=$null;$script:nextScan=[DateTime]::UtcNow.AddSeconds(15)}
   }elseif(([DateTime]::UtcNow-$b.Started).TotalSeconds -gt 100){
